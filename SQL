@@ -1,0 +1,268 @@
+CREATE DATABASE IF NOT EXISTS ecommerce_project;
+USE ecommerce_project;
+
+CREATE TABLE customer (
+customer_id VARCHAR (50),
+customer_unique_id VARCHAR (50),
+customer_zip_code_prefix INT (10),
+customer_city VARCHAR (30),
+customer_state VARCHAR (10);
+
+DESC customer;
+
+LOAD DATA INFILE 'C:/customer.csv' INTO TABLE customer
+FIELDS TERMINATED BY ','
+IGNORE 1 LINES;
+
+CREATE TABLE geo (
+geolocation_zip_code_prefix INT (5),
+geolocation_lat DECIMAL (15, 10),
+geolocation_lng DECIMAL (15, 10),
+geolocation_city VARCHAR (25),
+geolocation_state VARCHAR (5)
+);
+
+DESC geo;
+
+CREATE TABLE item (
+order_id VARCHAR (50) NOT NULL,
+order item id INT (3) NOT NULL,
+product_id VARCHAR (50) NOT NULL,
+seller_id VARCHAR (50) NOT NULL,
+shipping_limit_date DATE NOT NULL,
+price FLOAT (5,3) NOT NULL,
+freight_value FLOAT (5,3) NOT NULL,
+PRIMARY KEY (order_id, order_item_id)
+);
+
+DESC item;
+
+ALTER TABLE item MODIFY COLUMN price DECIMAL (10,3);
+ALTER TABLE item MODIFY COLUMN freight_value DECIMAL (10,3);
+
+LOAD DATA INFILE 'C:/item.csv' INTO TABLE item
+FIELDS TERMINATED BY ' ,
+IGNORE 1 LINES;
+
+SELECT * FROM item;
+
+SELECT COUNT(*) FROM item;
+
+CREATE TABLE payment (
+order_id VARCHAR (50) NOT NULL,
+payment_sequential INT NOT NULL,
+payment_type VARCHAR (20) NOT NULL,
+payment installments INT NOT NULL,
+payment_value DECIMAL(10,2) NOT NULL,
+PRIMARY KEY (order_id, payment_sequential)
+);
+
+
+LOAD DATA INFILE 'C:/payment.csv' INTO TABLE payment
+FIELDS TERMINATED BY ','
+IGNORE 1 LINES;
+
+CREATE TABLE product_category (
+product_category_name VARCHAR (30),
+product_category_name_english VARCHAR (30)
+);
+
+ALTER TABLE product_category MODIFY COLUMN product_category_name VARCHAR (50);
+ALTER TABLE product_category MODIFY COLUMN product_category_name_english VARCHAR (50);
+
+LOAD DATA INFILE 'C:/product_category.csv' INTO TABLE product_category
+FIELDS TERMINATED BY ','
+IGNORE 1 LINES;
+
+CREATE TABLE product_list(
+product_id VARCHAR (50) PRIMARY KEY,
+product_category_name VARCHAR (50),
+product_name_length INT,
+product_description_lenght INT,
+product_photos_qty INT,
+product_weight_g INT,
+product_length_cm INT,
+product_height_cm INT,
+product_width_cm INT
+);
+
+LOAD DATA INFILE 'C:/product_list.csv' INTO TABLE product_list
+FIELDS TERMINATED BY ','
+IGNORE 1 LINES;
+
+CREATE TABLE review (
+review_id VARCHAR (50) PRIMARY KEY,
+order_id VARCHAR (50) NOT NULL,
+review_score INT CHECK (review_score BETWEEN 1 AND 5),
+review comment title VARCHAR (50),
+review_comment_message VARCHAR (100),
+review_creation_date TIMESTAMP NOT NULL,
+review_answer_timestamp TIMESTAMP
+);
+
+ALTER TABLE review DROP COLUMN review_comment_message; 104
+LOAD DATA INFILE 'C:/review.csv' INTO TABLE review
+FIELDS TERMINATED BY ','
+IGNORE 1 LINES;
+
+CREATE TABLE seller (
+seller_id VARCHAR (50) PRIMARY KEY,
+seller_zipcode_prefix INT,
+seller_city VARCHAR (50) NOT NULL,
+seller_state VARCHAR (5) NOT NULL
+);
+
+ALTER TABLE seller MODIFY COLUMN seller_state VARCHAR (20) NOT NULL;
+ALTER TABLE seller MODIFY COLUMN seller_state VARCHAR (100) NOT NULL;
+
+LOAD DATA INFILE 'C:/seller.csv' INTO TABLE seller
+FIELDS TERMINATED BY ','
+IGNORE 1 LINES;
+
+SHOW TABLES;
+	
+SELECT	COUNT(*)	FROM	customer;
+SELECT	COUNT(*)	FROM	geo;
+SELECT	COUNT(*)	FROM	item;
+SELECT	COUNT(*)	FROM	payment;
+SELECT	COUNT(*)	FROM	product_category;
+SELECT	COUNT(*)	FROM	review;
+SELECT	COUNT(*)	FROM	seller;
+			
+/*VALIDATING BUISNESS*/	
+		
+/*1. RETURNING VISITORS*/	
+		
+SELECT	
+customer_unique_id,	
+COUNT(customer_id) AS visit_count	
+FROM customer	
+GROUP BY customer_unique_id	
+HAVING COUNT(customer_id) > 1;	
+
+		
+NITH v:is:tt_counts AS (	
+SELECT	
+customer_unique_id,	
+COUNT(customer_id) AS visit_count	
+FROM customer	
+GROUP BY customer_unique_id	
+)	
+SELECT	
+COUNT(CASE WHEN visit_count > 1 THEN 1 END) AS	returning_visitors,
+COUNT(*) AS total_visitors,	
+(COUNT(CASE WHEN visit_count > 1 THEN 1 END)	*	100.0)	/	COUNT(*)	AS
+	returning_visitor_rate	
+	FROM visit_counts;	
+		
+/*2. Pages per visit*/	
+		
+SELECT	
+order_id,	
+COUNT(order_item_id) AS pages_per_visit	
+FROM item	
+GROUP BY order_id;	
+		
+SELECT	
+AVG(pages_per_visit) AS avg_pages_per_visit	
+FROM (	
+SELECT	
+order_id,	
+COUNT(order_item_id) AS pages_per_visit	
+FROM item	
+GROUP BY order_id	
+) AS visit_counts;	
+		
+SELECT	
+AVG(pages_per_visit) AS avg_pages_per_visit	
+
+FROM (	
+SELECT	
+order_id,	
+COUNT(order_item_id) AS pages_per_visit	
+FROM item	
+GROUP BY order_id	
+) AS visit_counts;	
+		
+	/*3. Bounce Rate*/	
+		
+	SELECT DISTINCT order_id,	
+	COUNT(order_id) AS bounced_visits	
+	FROM item	
+	GROUP BY order_id	
+	HAVING COUNT(order_item_id) = 1;	
+		
+	SELECT	
+	COUNT(order_id) AS bounced_visits,	
+	(COUNT(order_id) * 100.0) / (SELECT COUNT(DISTINCT	order_id) FROM item) AS
+	bounce_rate	
+	FROM (	
+	SELECT	
+	order_id,	
+	COUNT(order_item_id) AS pages_per_visit	
+	FROM item	
+	GROUP BY order_id	
+	HAVING COUNT(order_item_id)	1	
+	) AS bounced_orders;	
+		
+		
+	/*4. Average order value */	
+	SELECT	
+	ROUND(SUM(total_value) / COUNT(DISTINCT order_id),	2) AS avg_order_value
+	FROM (	
+	SELECT	
+	order_id,	
+	SUM(pr1ce) AS tota1_va1ue	
+	FROM 1tem	
+	GROUP BY order_id	
+	) AS order_summa ry;	
+	
+/*5. Unique Visitors*/	
+	SELECT	
+	COUNT(DISTINCT customer_unique_id) AS unique_visitors
+	FROM customer;
+	
+	/’6. Top 10 Products*/
+	SELECT
+	i . product_1d,
+	pl.product_category_name,
+	SUM(i.order_item_id) AS total_quantity_sold
+	FROM
+	item i
+	JOIN
+	product_list pl ON i.product_id = pl.product_id
+	GROUP BY
+	i.product_id,
+	pl.product_category_name
+	ORDER BY
+	total_quantity_sold DESC
+
+ LIMIT 10;
+
+ /*7. Bottom 10*/
+SELECT
+i.product_id,
+pl.product_category_name,
+SUM(i.order_item_id) AS total_quantity_sold
+FROM
+item i
+JOIN
+product_list pl ON i.product_id = pl.product_id
+GROUP BY
+i.product_id,
+pl.product_category_name
+ORDER BY
+total_quantity_sold ASC
+LIMIT 10;
+
+/*8. Review count by their review score*/
+SELECT
+review_score,
+COUNT(*) AS review_count
+FROM
+review
+GROUP BY
+review_score
+ORDER BY
+review_score ASC;
+
